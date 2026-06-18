@@ -42,25 +42,48 @@ export function Game() {
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="border-b border-border/50 backdrop-blur-md bg-background/30 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Zap className="w-6 h-6 text-neon-cyan" style={{ filter: "drop-shadow(0 0 8px var(--neon-cyan))" }} />
+        <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div
+              className="relative w-11 h-11 rounded-lg border border-neon-cyan/40 flex items-center justify-center shrink-0"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.78 0.2 195 / 0.15), oklch(0.7 0.28 330 / 0.15))",
+                boxShadow: "inset 0 0 12px oklch(0.78 0.2 195 / 0.2), 0 0 18px oklch(0.78 0.2 195 / 0.25)",
+              }}
+            >
+              <Zap
+                className="w-5 h-5 text-neon-cyan"
+                style={{ filter: "drop-shadow(0 0 6px var(--neon-cyan))" }}
+              />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-neon-magenta animate-pulse" style={{ boxShadow: "0 0 8px var(--neon-magenta)" }} />
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-wider bg-clip-text text-transparent" style={{ backgroundImage: "var(--gradient-neon)" }}>
-                NEON PROTOCOL
+            <div className="min-w-0">
+              <h1
+                className="text-xl md:text-2xl font-bold tracking-[0.25em] bg-clip-text text-transparent leading-none"
+                style={{ backgroundImage: "var(--gradient-neon)" }}
+              >
+                SYNAPSE//08
               </h1>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase">Adım {stepCount}</p>
+              <p className="mt-1.5 text-[10px] md:text-[11px] text-muted-foreground tracking-[0.3em] uppercase truncate">
+                Hatırla · Seç · Kaç
+              </p>
             </div>
           </div>
-          <button
-            onClick={restart}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-neon-cyan/60 transition-all"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Yeniden Başla
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-[10px] text-muted-foreground tracking-[0.25em] uppercase">Döngü</span>
+              <span className="font-mono text-sm text-neon-cyan tabular-nums">
+                {String(stepCount).padStart(3, "0")}
+              </span>
+            </div>
+            <button
+              onClick={restart}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-neon-cyan/60 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Yeniden Başla</span>
+            </button>
+          </div>
         </div>
       </header>
 
