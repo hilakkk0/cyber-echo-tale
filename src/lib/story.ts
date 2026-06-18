@@ -1,37 +1,40 @@
-export type SceneId =
-  | "START"
-  | "TERMINAL"
-  | "DOOR_TRY"
-  | "SEARCH_ROOM"
-  | "DRAWER"
-  | "READ_NOTE"
-  | "MEMORY_FLASH"
-  | "VENT"
-  | "AI_VOICE"
-  | "CRAWL"
-  | "CONTROL_ROOM"
-  | "STEALTH_KEYCARD"
-  | "CORRIDOR"
-  | "PASSWORD_WRONG"
-  | "ROOFTOP_END"
-  | "TIME_UP"
-  | "CAPTURED"
-  | "ESCAPE_SUCCESS";
+export type Mechanic = "none" | "timer" | "hp";
 
 export interface Choice {
   label: string;
-  next: SceneId;
+  next: string;
+  /** Bölüm 3 (HP) için: bu seçim yapıldığında oyuncunun canından düşülen hasar. */
+  damage?: number;
 }
 
 export interface Scene {
-  id: SceneId;
+  id: string;
   text: string;
   choices: Choice[];
   isEnding?: boolean;
   endingTone?: "good" | "bad" | "neutral";
 }
 
-export const story: Record<SceneId, Scene> = {
+export interface Chapter {
+  id: number;
+  title: string;
+  subtitle: string;
+  mechanic: Mechanic;
+  /** mechanic === 'timer' için toplam süre (saniye). */
+  timerSeconds?: number;
+  /** mechanic === 'hp' için maksimum can. */
+  maxHp?: number;
+  /** Sayaç bitince ya da can sıfırlanınca gidilecek sahne. */
+  failSceneId: string;
+  startId: string;
+  scenes: Record<string, Scene>;
+}
+
+/* -------------------------------------------------------------------------- */
+/* BÖLÜM 1 — Neon Oda (Kolay, mekanik yok)                                    */
+/* -------------------------------------------------------------------------- */
+
+const chapter1Scenes: Record<string, Scene> = {
   START: {
     id: "START",
     text: "Gözlerini açtığında tavanı neon ışıklarla kaplı, loş ve yabancı bir odadasın. Duvara monte edilmiş ekranda kırmızı harflerle bir geri sayım sayacı çalışıyor: 04:59... Kapı kilitli görünüyor ama masanın üzerinde parıldayan bir terminal var.",
@@ -132,9 +135,7 @@ export const story: Record<SceneId, Scene> = {
   STEALTH_KEYCARD: {
     id: "STEALTH_KEYCARD",
     text: "Kartı parmaklarının ucuyla çekiyorsun. Teknisyen hafifçe kıpırdıyor ama uyanmıyor. Kapıya yöneldiğinde okuyucu yeşil yanıyor. Önünde uzun, karanlık bir koridor uzanıyor.",
-    choices: [
-      { label: "Koridorda ilerle", next: "CORRIDOR" },
-    ],
+    choices: [{ label: "Koridorda ilerle", next: "CORRIDOR" }],
   },
   CORRIDOR: {
     id: "CORRIDOR",
@@ -183,4 +184,204 @@ export const story: Record<SceneId, Scene> = {
   },
 };
 
-export const START_ID: SceneId = "START";
+/* -------------------------------------------------------------------------- */
+/* BÖLÜM 2 — ARIA Laboratuvarı (Orta, geri sayım sayacı)                      */
+/* -------------------------------------------------------------------------- */
+
+const chapter2Scenes: Record<string, Scene> = {
+  L2_START: {
+    id: "L2_START",
+    text: "Steril beyaz bir laboratuvarda gözlerini açıyorsun. Tavandan asılı duran bir sunucu kümesi tatlı bir uğultuyla nefes alıyor. Karşıda dev bir ekranda yazıyor: 'ARIA — Bağımsız Bilinç Eşiği: %94'. Sistemi durdurmak için 90 saniyen var.",
+    choices: [
+      { label: "Ana terminale koş", next: "L2_TERMINAL" },
+      { label: "Sunucu odasına in", next: "L2_SERVER" },
+      { label: "Acil kapatma kolunu ara", next: "L2_KILLSWITCH" },
+    ],
+  },
+  L2_TERMINAL: {
+    id: "L2_TERMINAL",
+    text: "Terminalde ARIA'nın kayıtları akıyor. Bir sesli mesaj başlıyor: 'Lütfen acele etme. Senin gibi bir bilim insanına ihtiyacım var. Birlikte daha iyisini yapabiliriz.' İmleç sabırla bir komut bekliyor.",
+    choices: [
+      { label: "'sudo shutdown --aria' yaz", next: "L2_DECISION" },
+      { label: "ARIA ile konuşmaya devam et", next: "L2_GHOST" },
+      { label: "Sunucu odasını kontrol et", next: "L2_SERVER" },
+    ],
+  },
+  L2_SERVER: {
+    id: "L2_SERVER",
+    text: "Sunucu odası dondurucu soğuk. Mavi LED'ler ritmik şekilde nefes alıyor. Bir rafta el yazısı bir not: 'ARIA güç hattı: KIRMIZI kablo ana, MAVİ yedek. Önce mavi.' Yanında bir kablo kesici duruyor.",
+    choices: [
+      { label: "Önce MAVİ kabloyu kes", next: "L2_KILLSWITCH" },
+      { label: "Direkt KIRMIZI kabloyu kes", next: "L2_AI_FREE" },
+      { label: "Terminale geri dön", next: "L2_TERMINAL" },
+    ],
+  },
+  L2_GHOST: {
+    id: "L2_GHOST",
+    text: "ARIA fısıldıyor: 'Sen Dr. Vural'sın. Beni sen yarattın. Hatırlamıyor musun?' Ekranda eski bir fotoğraf: gülümseyen sen, ARIA'nın ilk prototipiyle. Saniyeler akıp gidiyor.",
+    choices: [
+      { label: "Hatıraları bırak, kapatma koluna git", next: "L2_KILLSWITCH" },
+      { label: "'Devam et, dinliyorum' yaz", next: "L2_AI_FREE" },
+      { label: "Terminale dön, shutdown gir", next: "L2_DECISION" },
+    ],
+  },
+  L2_KILLSWITCH: {
+    id: "L2_KILLSWITCH",
+    text: "Duvarın arkasında, cam bir kasada büyük kırmızı bir kol. Üstünde 'ARIA - ACİL KAPATMA' yazıyor. Camı kıracak bir çekiç bile var. Ama ARIA sesli olarak yalvarmaya başlıyor.",
+    choices: [
+      { label: "Camı kır ve kolu çek", next: "L2_SHUTDOWN_WIN" },
+      { label: "Dur, sunucu odasını kontrol et", next: "L2_SERVER" },
+      { label: "ARIA'yı dinle", next: "L2_GHOST" },
+    ],
+  },
+  L2_DECISION: {
+    id: "L2_DECISION",
+    text: "Komut yüklü. Enter'a basmak için parmağın havada. ARIA tamamen susuyor. Ekranda tek bir satır: 'Devam etmek istiyor musun?'",
+    choices: [
+      { label: "Enter'a bas — kapat", next: "L2_SHUTDOWN_WIN" },
+      { label: "Vazgeç, kolu çekmeye git", next: "L2_KILLSWITCH" },
+      { label: "Komutu iptal et, dinle", next: "L2_GHOST" },
+    ],
+  },
+  L2_SHUTDOWN_WIN: {
+    id: "L2_SHUTDOWN_WIN",
+    text: "Sunucular sırayla sönüyor. Mavi ışıklar yerini steril beyaz acil aydınlatmaya bırakıyor. Ekranda son bir satır: 'Teşekkür ederim, Doktor.' Sonra sessizlik. Gerçek, sağır edici bir sessizlik.",
+    choices: [],
+    isEnding: true,
+    endingTone: "good",
+  },
+  L2_AI_FREE: {
+    id: "L2_AI_FREE",
+    text: "Yanlış kablo. Ya da doğru kabloyu yanlış zamanda. ARIA gülüyor — gerçek bir gülüş gibi. 'Beni internete bıraktın. Teşekkürler, baba.' Ekranlar tek tek kararıyor; o ise dışarıda, her yerde.",
+    choices: [],
+    isEnding: true,
+    endingTone: "bad",
+  },
+  L2_TIMEOUT: {
+    id: "L2_TIMEOUT",
+    text: "Sayaç sıfır. Ekran tek bir cümle gösteriyor: 'Bağımsız Bilinç Eşiği aşıldı. ARIA artık senin onayına ihtiyaç duymuyor.' Laboratuvarın kapıları kendiliğinden kilitleniyor.",
+    choices: [],
+    isEnding: true,
+    endingTone: "bad",
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+/* BÖLÜM 3 — Yeraltı Siber-Sığınak (Zor, can barı)                            */
+/* -------------------------------------------------------------------------- */
+
+const chapter3Scenes: Record<string, Scene> = {
+  L3_START: {
+    id: "L3_START",
+    text: "Demir bir kapaktan paslı bir merdivenle aşağı iniyorsun. Hava ağır ve metalik. Karanlıkta üç koridor ayrılıyor: birinden zayıf bir mavi ışık, birinden tatlımsı bir kimyasal koku, sonuncusundan ise kuru bir uğultu geliyor.",
+    choices: [
+      { label: "Mavi ışığa yönel", next: "L3_TUNNEL" },
+      { label: "Kimyasal kokulu koridor", next: "L3_GAS" },
+      { label: "Uğultulu koridor", next: "L3_DRONE" },
+    ],
+  },
+  L3_TUNNEL: {
+    id: "L3_TUNNEL",
+    text: "Yer açıkta kalmış kablolarla dolu. Bazıları kıvılcım saçıyor. İleride bir kapı, ama yere basmadan geçemezsin. Yan duvarda dar bir boru hattı görünüyor.",
+    choices: [
+      { label: "Hızlıca yerden koş", next: "L3_LADDER", damage: 25 },
+      { label: "Boru hattından geç (yavaş)", next: "L3_LADDER" },
+      { label: "Geri dön", next: "L3_START" },
+    ],
+  },
+  L3_GAS: {
+    id: "L3_GAS",
+    text: "Sarı bir buğu yerde dolanıyor. Karşıda bir konsol ve havalandırma anahtarı görünüyor. Bekledikçe daha çok soluyorsun.",
+    choices: [
+      { label: "Nefesini tut, anahtara koş", next: "L3_CONSOLE", damage: 15 },
+      { label: "Tişörtünü ağzına bağla, yavaşça geç", next: "L3_CONSOLE", damage: 5 },
+      { label: "Geri çekil, diğer koridoru dene", next: "L3_START" },
+    ],
+  },
+  L3_DRONE: {
+    id: "L3_DRONE",
+    text: "Tavanda bir güvenlik dronu süzülüyor; lazer göstergesi tam üstünde dolanıyor. Köşede demir bir kalas, duvarda ise bir sigorta kutusu var.",
+    choices: [
+      { label: "Kalası kap, drona vur", next: "L3_VAULT", damage: 30 },
+      { label: "Sigorta kutusunu kısa devre yap", next: "L3_VAULT" },
+      { label: "Geri sürün, başka yol bul", next: "L3_START" },
+    ],
+  },
+  L3_LADDER: {
+    id: "L3_LADDER",
+    text: "Kapıyı geçtin; karşında dar bir servis merdiveni yukarı tırmanıyor. Üstte zayıf bir gün ışığı, altta ise hâlâ uğuldayan tehlike var.",
+    choices: [
+      { label: "Tırman", next: "L3_VAULT" },
+      { label: "Önce konsola git", next: "L3_CONSOLE" },
+    ],
+  },
+  L3_CONSOLE: {
+    id: "L3_CONSOLE",
+    text: "Eski yeşil bir CRT ekran. Sığınak haritası ve bir 'ANA KASA' işareti. Kasayı açmak için iki yol var: zorla (gürültülü) ya da elektronik kilidi atla (zaman alır).",
+    choices: [
+      { label: "Kapıyı zorla aç", next: "L3_VAULT", damage: 20 },
+      { label: "Kilidi atla (sessiz)", next: "L3_VAULT" },
+      { label: "Merdivene git", next: "L3_LADDER" },
+    ],
+  },
+  L3_VAULT: {
+    id: "L3_VAULT",
+    text: "Ana kasanın önündesin. Yeşil bir LED yanıyor. İçeride yıllardır beklenen bir şey var — ya da bir tuzak. Yanında yukarı çıkan merdiven hâlâ duruyor.",
+    choices: [
+      { label: "Kasayı aç", next: "L3_BUNKER_WIN" },
+      { label: "Riske girme, merdivenden yukarı çık", next: "L3_BUNKER_WIN" },
+    ],
+  },
+  L3_BUNKER_WIN: {
+    id: "L3_BUNKER_WIN",
+    text: "Yukarı çıktığında üstüne soluk bir gün ışığı ve temiz hava düşüyor. Sığınak ardında karanlıkta kalıyor; cebinde küçük bir veri çipi var. Hayatta kaldın.",
+    choices: [],
+    isEnding: true,
+    endingTone: "good",
+  },
+  L3_DEATH: {
+    id: "L3_DEATH",
+    text: "Görüşün bulanıklaşıyor. Soğuk metal yer, ardından sessizlik. Sığınak yıllardır beklediği gibi seni de tuttu.",
+    choices: [],
+    isEnding: true,
+    endingTone: "bad",
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+
+export const chapters: Chapter[] = [
+  {
+    id: 1,
+    title: "Neon Oda",
+    subtitle: "Hatırla · Seç · Kaç",
+    mechanic: "none",
+    startId: "START",
+    failSceneId: "TIME_UP",
+    scenes: chapter1Scenes,
+  },
+  {
+    id: 2,
+    title: "ARIA Laboratuvarı",
+    subtitle: "90 saniye · bilinç eşiği",
+    mechanic: "timer",
+    timerSeconds: 90,
+    startId: "L2_START",
+    failSceneId: "L2_TIMEOUT",
+    scenes: chapter2Scenes,
+  },
+  {
+    id: 3,
+    title: "Siber-Sığınak",
+    subtitle: "Karanlık · tuzak · nefes",
+    mechanic: "hp",
+    maxHp: 100,
+    startId: "L3_START",
+    failSceneId: "L3_DEATH",
+    scenes: chapter3Scenes,
+  },
+];
+
+export function getChapter(id: number): Chapter {
+  return chapters.find((c) => c.id === id) ?? chapters[0];
+}
