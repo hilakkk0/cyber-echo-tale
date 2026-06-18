@@ -85,6 +85,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             </label>
             <Input
               id="player-name"
+              type="text"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -93,7 +94,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               placeholder="Adını yaz..."
               autoComplete="off"
               autoFocus
-              className="h-11 border-border/60 bg-secondary/30 focus-visible:ring-neon-cyan/50"
+              className="h-11 border-border/60 bg-secondary/30 text-foreground focus-visible:ring-neon-cyan/50"
             />
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
           </div>
