@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { chapters, getChapter } from "@/lib/story";
-import { Zap, RotateCcw, Sparkles, Timer, Heart, ChevronRight, Skull } from "lucide-react";
+import {
+  clearActivePlayer,
+  getActivePlayer,
+  loadPlayerSave,
+  savePlayerSave,
+  touchPlayer,
+  type PlayerRecord,
+  type PlayerSave,
+} from "@/lib/player-storage";
+import { LoginScreen } from "@/components/LoginScreen";
+import { Zap, RotateCcw, Sparkles, Timer, Heart, ChevronRight, Skull, LogOut, User } from "lucide-react";
 
-const LS_CHAPTER = "cyoa-current-chapter";
-const LS_UNLOCKED = "cyoa-unlocked-chapters";
-const LS_SCENE = (id: number) => `cyoa-scene-${id}`;
-
-function loadJSON<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const v = localStorage.getItem(key);
-    return v ? (JSON.parse(v) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export function Game() {
+function GameSession({
+  player,
+  onLogout,
+}: {
+  player: PlayerRecord;
+  onLogout: () => void;
+}) {
   const [chapterId, setChapterId] = useState<number>(1);
   const [sceneId, setSceneId] = useState<string>("START");
   const [unlocked, setUnlocked] = useState<number[]>([1]);
@@ -29,29 +31,32 @@ export function Game() {
   const chapter = useMemo(() => getChapter(chapterId), [chapterId]);
   const scene = chapter.scenes[sceneId] ?? chapter.scenes[chapter.startId];
 
-  // Hydrate from localStorage once
   useEffect(() => {
-    const ch = Number(localStorage.getItem(LS_CHAPTER) || "1") || 1;
-    const u = loadJSON<number[]>(LS_UNLOCKED, [1]);
-    const c = getChapter(ch);
-    const s = localStorage.getItem(LS_SCENE(ch)) || c.startId;
-    setChapterId(ch);
-    setUnlocked(u.includes(1) ? u : [...u, 1]);
-    setSceneId(c.scenes[s] ? s : c.startId);
-    if (c.mechanic === "timer") setTimeLeft(c.timerSeconds ?? 60);
-    if (c.mechanic === "hp") setHp(c.maxHp ?? 100);
+    const save = loadPlayerSave(player.id);
+    setChapterId(save.chapterId);
+    setSceneId(save.sceneId);
+    setUnlocked(save.unlocked);
+    setHp(save.hp);
+    setTimeLeft(save.timeLeft);
+    setStepCount(save.stepCount);
+    touchPlayer(player.id);
     setHydrated(true);
-  }, []);
+  }, [player.id]);
 
-  // Persist scene + chapter
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(LS_CHAPTER, String(chapterId));
-    localStorage.setItem(LS_SCENE(chapterId), sceneId);
-    localStorage.setItem(LS_UNLOCKED, JSON.stringify(unlocked));
-  }, [chapterId, sceneId, unlocked, hydrated]);
+    const save: PlayerSave = {
+      chapterId,
+      sceneId,
+      unlocked,
+      hp,
+      timeLeft,
+      stepCount,
+    };
+    savePlayerSave(player.id, save);
+    touchPlayer(player.id);
+  }, [chapterId, sceneId, unlocked, hp, timeLeft, stepCount, hydrated, player.id]);
 
-  // Timer mechanic
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (tickRef.current) {
@@ -70,7 +75,6 @@ export function Game() {
     };
   }, [chapter, scene.isEnding, hydrated, timeLeft > 0]);
 
-  // Timer fail
   useEffect(() => {
     if (!hydrated) return;
     if (chapter.mechanic !== "timer") return;
@@ -127,7 +131,6 @@ export function Game() {
   const isWin = scene.isEnding && scene.endingTone === "good";
   const isLose = scene.isEnding && scene.endingTone === "bad";
 
-  // Unlock next chapter on win
   useEffect(() => {
     if (!hydrated) return;
     if (isWin && nextChapter && !unlocked.includes(nextChapter.id)) {
@@ -144,15 +147,16 @@ export function Game() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="border-b border-border/50 backdrop-blur-md bg-background/40 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <div
               className="relative w-11 h-11 rounded-lg border border-neon-cyan/40 flex items-center justify-center shrink-0"
               style={{
-                background: "linear-gradient(135deg, oklch(0.78 0.14 60 / 0.18), oklch(0.62 0.16 35 / 0.15))",
-                boxShadow: "inset 0 0 12px oklch(0.78 0.14 60 / 0.2), 0 0 18px oklch(0.78 0.14 60 / 0.2)",
+                background:
+                  "linear-gradient(135deg, oklch(0.78 0.14 60 / 0.18), oklch(0.62 0.16 35 / 0.15))",
+                boxShadow:
+                  "inset 0 0 12px oklch(0.78 0.14 60 / 0.2), 0 0 18px oklch(0.78 0.14 60 / 0.2)",
               }}
             >
               <Zap
@@ -177,8 +181,7 @@ export function Game() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Chapter dots */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="hidden sm:flex items-center gap-1.5">
               {chapters.map((c) => {
                 const isCurrent = c.id === chapterId;
@@ -199,11 +202,7 @@ export function Game() {
                           ? "border-neon-cyan/80 text-neon-cyan"
                           : "border-border/60 text-muted-foreground group-hover:text-foreground"
                       }`}
-                      style={
-                        isCurrent
-                          ? { boxShadow: "var(--shadow-neon-cyan)" }
-                          : undefined
-                      }
+                      style={isCurrent ? { boxShadow: "var(--shadow-neon-cyan)" } : undefined}
                     >
                       {c.id}
                     </span>
@@ -211,6 +210,15 @@ export function Game() {
                 );
               })}
             </div>
+
+            <div
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border/50 bg-secondary/30 text-xs text-muted-foreground max-w-[140px]"
+              title={`Operatör: ${player.displayName}`}
+            >
+              <User className="w-3.5 h-3.5 text-neon-magenta shrink-0" />
+              <span className="truncate">{player.displayName}</span>
+            </div>
+
             <button
               onClick={restartChapter}
               className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-neon-cyan/60 transition-all"
@@ -218,10 +226,25 @@ export function Game() {
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Yeniden Başla</span>
             </button>
+
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-all"
+              title="Çıkış yap"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Çıkış</span>
+            </button>
           </div>
         </div>
 
-        {/* Mechanic bar */}
+        <div className="md:hidden border-t border-border/40 bg-background/30">
+          <div className="max-w-3xl mx-auto px-6 py-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <User className="w-3.5 h-3.5 text-neon-magenta shrink-0" />
+            <span className="truncate">{player.displayName}</span>
+          </div>
+        </div>
+
         {chapter.mechanic !== "none" && !scene.isEnding && (
           <div className="border-t border-border/40 bg-background/30">
             <div className="max-w-3xl mx-auto px-6 py-2.5 flex items-center gap-4">
@@ -242,9 +265,7 @@ export function Game() {
                       className="h-full transition-all duration-1000 ease-linear"
                       style={{
                         width: `${timerPct}%`,
-                        background: timerCritical
-                          ? "var(--destructive)"
-                          : "var(--gradient-neon)",
+                        background: timerCritical ? "var(--destructive)" : "var(--gradient-neon)",
                         boxShadow: timerCritical
                           ? "0 0 12px var(--destructive)"
                           : "0 0 10px var(--neon-cyan)",
@@ -271,9 +292,7 @@ export function Game() {
                       className="h-full transition-all duration-500 ease-out"
                       style={{
                         width: `${hpPct}%`,
-                        background: hpCritical
-                          ? "var(--destructive)"
-                          : "var(--gradient-neon)",
+                        background: hpCritical ? "var(--destructive)" : "var(--gradient-neon)",
                         boxShadow: hpCritical
                           ? "0 0 12px var(--destructive)"
                           : "0 0 10px var(--neon-magenta)",
@@ -287,7 +306,6 @@ export function Game() {
         )}
       </header>
 
-      {/* Main */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div
           className={`w-full max-w-2xl transition-all duration-300 ease-out ${
@@ -332,9 +350,7 @@ export function Game() {
                     }}
                   />
                   <span className="relative flex items-center gap-3">
-                    <span className="text-neon-magenta font-mono text-sm">
-                      0{i + 1}
-                    </span>
+                    <span className="text-neon-magenta font-mono text-sm">0{i + 1}</span>
                     <span className="text-foreground/90 group-hover:text-foreground flex-1">
                       {choice.label}
                     </span>
@@ -360,9 +376,7 @@ export function Game() {
                     {isWin ? (
                       <>
                         <Sparkles className="w-5 h-5" />
-                        <span className="text-xl font-semibold tracking-wide">
-                          TEBRİKLER
-                        </span>
+                        <span className="text-xl font-semibold tracking-wide">TEBRİKLER</span>
                         <Sparkles className="w-5 h-5" />
                       </>
                     ) : (
@@ -414,5 +428,31 @@ export function Game() {
         </div>
       </main>
     </div>
+  );
+}
+
+export function Game() {
+  const [player, setPlayer] = useState<PlayerRecord | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setPlayer(getActivePlayer());
+    setReady(true);
+  }, []);
+
+  if (!ready) return null;
+
+  if (!player) {
+    return <LoginScreen onLogin={setPlayer} />;
+  }
+
+  return (
+    <GameSession
+      player={player}
+      onLogout={() => {
+        clearActivePlayer();
+        setPlayer(null);
+      }}
+    />
   );
 }
