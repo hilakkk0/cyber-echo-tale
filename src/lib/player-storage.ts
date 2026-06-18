@@ -46,11 +46,19 @@ export function getActivePlayer(): PlayerRecord | null {
 }
 
 export function setActivePlayer(record: PlayerRecord): void {
-  localStorage.setItem(LS_ACTIVE, JSON.stringify(record));
+  try {
+    localStorage.setItem(LS_ACTIVE, JSON.stringify(record));
+  } catch (e) {
+    console.error("Failed to set active player in localStorage:", e);
+  }
 }
 
 export function clearActivePlayer(): void {
-  localStorage.removeItem(LS_ACTIVE);
+  try {
+    localStorage.removeItem(LS_ACTIVE);
+  } catch (e) {
+    console.error("Failed to clear active player from localStorage:", e);
+  }
 }
 
 export function getKnownPlayers(): PlayerRecord[] {
@@ -64,7 +72,11 @@ export function registerPlayer(displayName: string): PlayerRecord {
 
   const players = getKnownPlayers().filter((p) => p.id !== id);
   players.unshift(record);
-  localStorage.setItem(LS_PLAYERS, JSON.stringify(players.slice(0, 12)));
+  try {
+    localStorage.setItem(LS_PLAYERS, JSON.stringify(players.slice(0, 12)));
+  } catch (e) {
+    console.error("Failed to save players list in localStorage:", e);
+  }
   setActivePlayer(record);
 
   return record;
@@ -75,13 +87,21 @@ export function touchPlayer(id: string): void {
   const idx = players.findIndex((p) => p.id === id);
   if (idx === -1) return;
   players[idx] = { ...players[idx], lastPlayed: Date.now() };
-  localStorage.setItem(LS_PLAYERS, JSON.stringify(players));
+  try {
+    localStorage.setItem(LS_PLAYERS, JSON.stringify(players));
+  } catch (e) {
+    console.error("Failed to touch player in localStorage:", e);
+  }
 }
 
 export function deletePlayer(id: string): void {
   const players = getKnownPlayers().filter((p) => p.id !== id);
-  localStorage.setItem(LS_PLAYERS, JSON.stringify(players));
-  localStorage.removeItem(saveKey(id));
+  try {
+    localStorage.setItem(LS_PLAYERS, JSON.stringify(players));
+    localStorage.removeItem(saveKey(id));
+  } catch (e) {
+    console.error("Failed to delete player from localStorage:", e);
+  }
 
   const active = getActivePlayer();
   if (active && active.id === id) {
@@ -122,5 +142,9 @@ export function loadPlayerSave(id: string): PlayerSave {
 }
 
 export function savePlayerSave(id: string, save: PlayerSave): void {
-  localStorage.setItem(saveKey(id), JSON.stringify(save));
+  try {
+    localStorage.setItem(saveKey(id), JSON.stringify(save));
+  } catch (e) {
+    console.error("Failed to save player progress in localStorage:", e);
+  }
 }
