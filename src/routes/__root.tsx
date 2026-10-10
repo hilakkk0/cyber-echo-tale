@@ -82,6 +82,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // GitHub Pages serves the app as a client-only SPA mounted into <div id="root">
+  // (see src/spa-entry.tsx). There, rendering a full <html> document inside that div
+  // locks up the page, so only the SSR build renders the full document shell.
+  if (typeof document !== "undefined" && document.getElementById("root")) {
+    return <>{children}</>;
+  }
+
   return (
     <html lang="en">
       <head>
